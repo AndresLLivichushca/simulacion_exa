@@ -5,3 +5,82 @@ docker images         # para verificar la imagen
 docker tag angular-apache andreslli07/angular-apache
 docker push andreslli07/angular-apache
 docker run -p 80:80 angular-apache
+
+# Imagen base con Node.js 18 y Debian Bullseye
+FROM node:18-bullseye
+
+# Desactivar prompts interactivos
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar Nginx y Node.js
+RUN apt-get update && apt-get install -y \
+    nginx \
+    curl \
+    gnupg \
+    ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @angular/cli \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar los archivos compilados de Angular a la carpeta predeterminada de Nginx
+COPY ./angular-app/dist/angular-app/browser/ /usr/share/nginx/html/
+
+# Copiar la configuración personalizada de Nginx
+COPY ./nginx/default.conf /etc/nginx/conf.d/default.conf
+
+# Exponer el puerto 80
+EXPOSE 80
+
+# Comando para iniciar Nginx
+CMD ["nginx", "-g", "daemon off;"]
+
+
+server {
+    listen 80;
+    server_name localhost;
+
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+
+
+# Imagen base con Node.js 18
+FROM node:18-bullseye
+
+# Desactivar prompts interactivos
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar Caddy y Node.js
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @angular/cli \
+    && curl -fsSL https://getcaddy.com | bash - \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar los archivos compilados de Angular
+COPY ./angular-app/dist/angular-app/browser/ /srv
+
+# Copiar la configuración de Caddy
+COPY ./Caddyfile /etc/caddy/Caddyfile
+
+# Exponer el puerto 80 (y 443 para HTTPS si lo deseas)
+EXPOSE 80 443
+
+# Comando para iniciar Caddy
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile"]
+
+
+:80 {
+    root * /srv
+    file_server
+}
