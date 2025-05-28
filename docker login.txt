@@ -1,0 +1,7 @@
+docker login
+
+docker build -t angular-apache .
+docker images         # para verificar la imagen
+docker tag angular-apache andreslli07/angular-apache
+docker push andreslli07/angular-apache
+docker run -p 80:80 angular-apache
